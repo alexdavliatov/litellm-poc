@@ -1,0 +1,15 @@
+apiVersion: 1
+
+providers:
+  - name: litellm
+    orgId: 1
+    folder: LiteLLM
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      # Grafana scans this dir for *.json dashboards (ignores the *.yml here).
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

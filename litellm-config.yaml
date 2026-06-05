@@ -88,6 +88,15 @@ litellm_settings:
   drop_params: true            # ignore unsupported params instead of erroring
   num_retries: 2
   request_timeout: 600
+  # --- Observability ---------------------------------------------------------
+  # Log every request/response to Langfuse (traces, prompts, intent, skills).
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  # Expose Prometheus metrics on GET /metrics for Prometheus to scrape.
+  # NOTE: some advanced Prometheus metrics need a LiteLLM Enterprise license;
+  #       basic request/latency/spend metrics work on the OSS image.
+  callbacks: ["prometheus"]
+  require_auth_for_metrics_endpoint: false   # allow Prometheus to scrape /metrics unauthenticated
   # Default ceilings applied when minting virtual keys (override per-key).
   upperbound_key_generate_params:
     max_budget: 100            # USD
