@@ -1,0 +1,101 @@
+services:
+  # ---------------------------------------------------------------------------
+  # LiteLLM Proxy — the AI gateway. One OpenAI-compatible API in front of all
+  # providers. Handles routing, fallbacks, virtual keys, budgets, spend logging.
+  # ---------------------------------------------------------------------------
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: litellm
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD}@db:5432/litellm
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # LiteLLM's image (Wolfi) has no curl, but it has Python — use that.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:4000/health/liveliness').status==200 else sys.exit(1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # Postgres — backs LiteLLM virtual keys, teams, budgets and spend tracking.
+  # Without a DB, virtual keys / cost tracking / admin UI are disabled.
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16
+    container_name: litellm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: litellm
+    volumes:
+      - litellm-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Open WebUI — the chat front-end. Points at LiteLLM as an OpenAI endpoint.
+  # ---------------------------------------------------------------------------
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      # Route all model calls through LiteLLM (internal docker network).
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      # Use a LiteLLM virtual key here in real use; master key is fine for PoC.
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      # Turn off the built-in Ollama integration; everything goes via LiteLLM.
+      ENABLE_OLLAMA_API: "false"
+    depends_on:
+      litellm:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Ollama — local open-weight models (proves the "no external API" path).
+  # Comment this block out if you only want OpenAI + Anthropic.
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # For NVIDIA GPU passthrough, uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  litellm-db-data:
+  open-webui-data:
+  ollama-data:
