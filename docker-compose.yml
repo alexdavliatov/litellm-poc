@@ -4,7 +4,11 @@ services:
   # providers. Handles routing, fallbacks, virtual keys, budgets, spend logging.
   # ---------------------------------------------------------------------------
   litellm:
-    image: ghcr.io/berriai/litellm:main-stable
+    # Pinned to v1.91.0 (latest stable). Contains PR #30225 "buffer native
+    # gemini sse frames", which fixes the Gemini streaming SSE frame-split bug
+    # (issue #30224 — "Unterminated string in JSON" in Gemini CLI). Verified:
+    # v1.91.0 sets `_litellm_raw_sse_stream`; earlier tags (e.g. v1.89.2) do not.
+    image: ghcr.io/berriai/litellm:v1.91.0
     container_name: litellm
     restart: unless-stopped
     ports:
