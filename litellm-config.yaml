@@ -37,6 +37,11 @@ model_list:
       model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_API_KEY
 
+  - model_name: gemini-3-flash-preview
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GEMINI_API_KEY
+
   # ---- DeepSeek --------------------------------------------------------------
   # input/output_cost_per_token required because these model IDs are not in
   # LiteLLM's built-in price map — without them spend is always logged as $0.
@@ -115,6 +120,7 @@ router_settings:
     - claude-sonnet-4.6: ["gpt-5.5", "llama3.1-local"]
     - gemini-2.5-pro: ["gemini-2.5-flash", "llama3.1-local"]
     - gemini-2.5-flash: ["llama3.1-local"]
+    - gemini-3-flash-preview: ["gemini-2.5-flash", "llama3.1-local"]
     - deepseek-v4-pro: ["deepseek-v4-flash", "llama3.1-local"]
     - deepseek-v4-flash: ["llama3.1-local"]
   # Catch-all: any model group without its own rule falls back to local.
